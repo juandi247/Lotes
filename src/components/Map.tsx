@@ -7,11 +7,6 @@ interface MapProps {
   center: { lat: number; lng: number };
   lots: any[];
 }
-interface MapProps {
-  projectId: number;
-  center: { lat: number; lng: number };
-  lots: any[];
-}
 
 export function Map({ projectId, center, lots }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -19,7 +14,7 @@ export function Map({ projectId, center, lots }: MapProps) {
   const [selectedLot, setSelectedLot] = useState<any | null>(null);
 
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !lots.length) return;
 
     const loader = new Loader({
       apiKey: 'AIzaSyAxqMS8hSon1ZxNV9GnJN4LzagScPZZZYA',
@@ -27,25 +22,74 @@ export function Map({ projectId, center, lots }: MapProps) {
     });
 
     loader.load().then(() => {
+      // Usamos el centro proporcionado como punto inicial
+      const initialView = center;
+      
+      // Usamos la primera coordenada del primer lote como destino final
+      const targetLot = lots[0].coordenadas[0];
+
       const mapInstance = new google.maps.Map(mapRef.current!, {
-        center,
-        zoom: 16,
-        mapTypeId: 'satellite', // Set default to satellite view
-        styles: [
-          {
-            featureType: 'poi',
-            elementType: 'labels',
-            stylers: [{ visibility: 'off' }],
-          },
-        ],
+        center: initialView,
+        zoom: 4,
+        mapTypeId: 'satellite',
+        tilt: 0,
+        disableDefaultUI: true,
+        gestureHandling: 'none',
+        zoomControl: false,
+        streetViewControl: false,
+        mapTypeControl: false,
+        fullscreenControl: false,
       });
       setMap(mapInstance);
+
+      const steps = [
+        { zoom: 3, delay: 100 },  
+        { zoom: 5, delay: 100 },      // Vista de Colombia
+        { zoom: 6, delay: 300 },   // Región general
+        { zoom: 8, delay: 300 },   // Departamento
+        { zoom: 10, delay: 600 },  // Ciudad
+        { zoom: 12, delay: 600 },  // Zona
+        { zoom: 14, delay: 600 },  // Zona
+        { zoom: 16, delay: 300 }   // Vista final
+      ];
+
+      let currentStep = 0;
+
+      const animate = () => {
+        if (currentStep >= steps.length) {
+          mapInstance.setOptions({
+            center: targetLot,
+            disableDefaultUI: false,
+            gestureHandling: 'cooperative',
+            zoomControl: true,
+            streetViewControl: true,
+            mapTypeControl: true,
+            fullscreenControl: true,
+          });
+          drawLots(mapInstance);
+          return;
+        }
+
+        const step = steps[currentStep];
+        
+        const currentCenter = mapInstance.getCenter()!;
+        const targetLat = currentCenter.lat() + (targetLot.lat - currentCenter.lat()) * 0.2;
+        const targetLng = currentCenter.lng() + (targetLot.lng - currentCenter.lng()) * 0.2;
+        
+        mapInstance.setOptions({
+          center: { lat: targetLat, lng: targetLng },
+          zoom: step.zoom
+        });
+
+        currentStep++;
+        setTimeout(animate, step.delay);
+      };
+
+      setTimeout(animate, 500);
     });
-  }, [center]);
+  }, [center, lots]);
 
-  useEffect(() => {
-    if (!map || lots.length === 0) return;
-
+  const drawLots = (mapInstance: google.maps.Map) => {
     lots.forEach((lote) => {
       const polygon = new google.maps.Polygon({
         paths: lote.coordenadas,
@@ -54,7 +98,7 @@ export function Map({ projectId, center, lots }: MapProps) {
         strokeWeight: 2,
         fillColor: lote.status === 'DISPONIBLE' ? '#3B82F6' : '#F87171',
         fillOpacity: 0.35,
-        map: map,
+        map: mapInstance,
       });
 
       polygon.addListener('click', () => {
@@ -81,7 +125,7 @@ export function Map({ projectId, center, lots }: MapProps) {
 
       new google.maps.Marker({
         position: center,
-        map: map,
+        map: mapInstance,
         label: {
           text: lote.numeroLote.toString(),
           color: '#FFFFFF',
@@ -94,7 +138,7 @@ export function Map({ projectId, center, lots }: MapProps) {
         },
       });
     });
-  }, [map, lots]);
+  };
 
   return (
     <>
