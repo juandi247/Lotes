@@ -29,7 +29,7 @@ export function Map({ projectId, center, lots }: MapProps) {
     loader.load().then(() => {
       const mapInstance = new google.maps.Map(mapRef.current!, {
         center,
-        zoom: 14,
+        zoom: 16,
         mapTypeId: 'satellite', // Set default to satellite view
         styles: [
           {
