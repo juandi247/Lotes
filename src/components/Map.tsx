@@ -43,7 +43,7 @@ export function Map({ projectId, center, lots }: MapProps) {
       setMap(mapInstance);
 
       const steps = [
-        { zoom: 3, delay: 100 },  
+        { zoom: 4, delay: 1200 },  
         { zoom: 5, delay: 100 },      // Vista de Colombia
         { zoom: 6, delay: 300 },   // Región general
         { zoom: 8, delay: 300 },   // Departamento
